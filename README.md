@@ -1,7 +1,5 @@
 # Tessel4J
 
-<img src="assets/logo.png" width="100">
-
 A modern, themeable **look and feel for Java Swing**, matching the design of [Tessel.NET](../Tessel.NET).
 
 - Light, dark and system themes, switchable at runtime
