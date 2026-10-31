@@ -92,6 +92,8 @@ public final class NativeWindowEffects {
     private static final int WM_NCUAHDRAWFRAME = 0x00AF;
     private static final int WM_NCACTIVATE = 0x0086;
     private static final int WM_NCDESTROY = 0x0082;
+    private static final int WM_SETTEXT = 0x000C;
+    private static final int WM_SETICON = 0x0080;
     private static final int WM_SHOWWINDOW = 0x0018;
     private static final int WM_WINDOWPOSCHANGING = 0x0046;
     private static final int SWP_HIDEWINDOW = 0x0080;
@@ -238,13 +240,26 @@ public final class NativeWindowEffects {
      * {@code lParam = -1} additionally tells it to leave the non-client area alone.
      */
     private LRESULT ncActivate(HWND hWnd, int msg, WPARAM wParam) {
+        return callWithoutPainting(hWnd, msg, wParam, new LPARAM(-1));
+    }
+
+    /**
+     * Runs the original window procedure with {@code WS_VISIBLE} taken away, so it cannot paint anything.
+     * Besides activation changes, setting the window icon or text makes Windows repaint the native caption
+     * directly (and AWT sets the icon again while the window is being dragged), which would flash a system
+     * title bar over the custom one until the next activation change.
+     */
+    private LRESULT callWithoutPainting(HWND hWnd, int msg, WPARAM wParam, LPARAM lParam) {
         int style = user32.GetWindowLong(hWnd, WinUser.GWL_STYLE);
         boolean visible = (style & WinUser.WS_VISIBLE) != 0;
         if (visible) user32.SetWindowLong(hWnd, WinUser.GWL_STYLE, style & ~WinUser.WS_VISIBLE);
         try {
-            return user32.CallWindowProc(originalProc, hWnd, msg, wParam, new LPARAM(-1));
+            return user32.CallWindowProc(originalProc, hWnd, msg, wParam, lParam);
         } finally {
-            if (visible) user32.SetWindowLong(hWnd, WinUser.GWL_STYLE, style);
+            if (visible) {
+                int now = user32.GetWindowLong(hWnd, WinUser.GWL_STYLE);
+                user32.SetWindowLong(hWnd, WinUser.GWL_STYLE, now | WinUser.WS_VISIBLE);
+            }
         }
     }
 
@@ -276,6 +291,9 @@ public final class NativeWindowEffects {
                     break;
                 case WM_NCACTIVATE:
                     return ncActivate(hWnd, msg, wParam);
+                case WM_SETICON:
+                case WM_SETTEXT:
+                    return callWithoutPainting(hWnd, msg, wParam, lParam);
                 case WM_WINDOWPOSCHANGING: {
                     // WINDOWPOS: hwnd, hwndInsertAfter, x, y, cx, cy, flags. This arrives before the window is
                     // hidden or shown, early enough for the fade animation to see the right style.

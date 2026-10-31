@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.Icon;
 import javax.swing.JComponent;
+import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.UIDefaults;
 import javax.swing.plaf.BorderUIResource;
@@ -14,6 +15,7 @@ import javax.swing.plaf.FontUIResource;
 import javax.swing.plaf.InsetsUIResource;
 import javax.swing.plaf.basic.BasicBorders;
 import javax.swing.plaf.basic.BasicLookAndFeel;
+import javax.swing.text.DefaultEditorKit;
 import net.tessel.laf.icons.TesselIcons;
 import net.tessel.laf.ui.TesselBorders;
 import net.tessel.laf.ui.TesselInputBorder;
@@ -566,6 +568,77 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
         // Top-level menus (in a menu bar) keep the wider side margins; TesselMenuUIs.MenuUI switches between them.
         table.put("Menu.margin", new InsetsUIResource(6, 8, 6, 8));
         table.put("Tessel.popupMenuMargin", new InsetsUIResource(6, 2, 6, 8));
+        installTextKeyBindings(table);
+    }
+
+    /**
+     * Key bindings of the text controls (arrow keys, Backspace, Delete, Home/End, clipboard and select-all
+     * shortcuts, Enter and Tab in multi-line text). {@code BasicLookAndFeel} does not define them: Metal and
+     * the other look and feels bring their own, and without them these keys do nothing in a text component
+     * (typing still works).
+     */
+    private static void installTextKeyBindings(UIDefaults table) {
+        Object[] field = textBindings(false, false);
+        Object[] password = textBindings(false, true);
+        Object[] multiline = textBindings(true, false);
+        table.put("TextField.focusInputMap", new UIDefaults.LazyInputMap(field));
+        // A formatted text field (and so the spinner editors) also reverts on Esc and steps with Up / Down.
+        List<Object> formatted = new ArrayList<>(java.util.Arrays.asList(field));
+        formatted.addAll(java.util.Arrays.asList("ESCAPE", "reset-field-edit",
+                "UP", "increment", "KP_UP", "increment", "DOWN", "decrement", "KP_DOWN", "decrement"));
+        table.put("FormattedTextField.focusInputMap", new UIDefaults.LazyInputMap(formatted.toArray()));
+        table.put("PasswordField.focusInputMap", new UIDefaults.LazyInputMap(password));
+        table.put("TextArea.focusInputMap", new UIDefaults.LazyInputMap(multiline));
+        table.put("TextPane.focusInputMap", new UIDefaults.LazyInputMap(multiline));
+        table.put("EditorPane.focusInputMap", new UIDefaults.LazyInputMap(multiline));
+    }
+
+    private static Object[] textBindings(boolean multiline, boolean password) {
+        String copy = password ? DefaultEditorKit.beepAction : DefaultEditorKit.copyAction;
+        String cut = password ? DefaultEditorKit.beepAction : DefaultEditorKit.cutAction;
+        String wordLeft = password ? DefaultEditorKit.beginLineAction : DefaultEditorKit.previousWordAction;
+        String wordRight = password ? DefaultEditorKit.endLineAction : DefaultEditorKit.nextWordAction;
+        String selWordLeft = password ? DefaultEditorKit.selectionBeginLineAction : DefaultEditorKit.selectionPreviousWordAction;
+        String selWordRight = password ? DefaultEditorKit.selectionEndLineAction : DefaultEditorKit.selectionNextWordAction;
+        String deleteWordBack = password ? DefaultEditorKit.beepAction : DefaultEditorKit.deletePrevWordAction;
+        String deleteWordNext = password ? DefaultEditorKit.beepAction : DefaultEditorKit.deleteNextWordAction;
+        List<Object> b = new ArrayList<>(java.util.Arrays.asList(
+                "ctrl C", copy, "ctrl V", DefaultEditorKit.pasteAction, "ctrl X", cut,
+                "COPY", copy, "PASTE", DefaultEditorKit.pasteAction, "CUT", cut,
+                "control INSERT", copy, "shift INSERT", DefaultEditorKit.pasteAction, "shift DELETE", cut,
+                "RIGHT", DefaultEditorKit.forwardAction, "KP_RIGHT", DefaultEditorKit.forwardAction,
+                "LEFT", DefaultEditorKit.backwardAction, "KP_LEFT", DefaultEditorKit.backwardAction,
+                "shift RIGHT", DefaultEditorKit.selectionForwardAction, "shift KP_RIGHT", DefaultEditorKit.selectionForwardAction,
+                "shift LEFT", DefaultEditorKit.selectionBackwardAction, "shift KP_LEFT", DefaultEditorKit.selectionBackwardAction,
+                "ctrl LEFT", wordLeft, "ctrl KP_LEFT", wordLeft, "ctrl RIGHT", wordRight, "ctrl KP_RIGHT", wordRight,
+                "ctrl shift LEFT", selWordLeft, "ctrl shift KP_LEFT", selWordLeft,
+                "ctrl shift RIGHT", selWordRight, "ctrl shift KP_RIGHT", selWordRight,
+                "ctrl A", DefaultEditorKit.selectAllAction,
+                "HOME", DefaultEditorKit.beginLineAction, "END", DefaultEditorKit.endLineAction,
+                "shift HOME", DefaultEditorKit.selectionBeginLineAction, "shift END", DefaultEditorKit.selectionEndLineAction,
+                "BACK_SPACE", DefaultEditorKit.deletePrevCharAction, "shift BACK_SPACE", DefaultEditorKit.deletePrevCharAction,
+                "ctrl H", DefaultEditorKit.deletePrevCharAction,
+                "DELETE", DefaultEditorKit.deleteNextCharAction,
+                "ctrl BACK_SPACE", deleteWordBack, "ctrl DELETE", deleteWordNext,
+                "ctrl BACK_SLASH", "unselect",
+                "control shift O", "toggle-componentOrientation"));
+        if (multiline) {
+            b.addAll(java.util.Arrays.asList(
+                    "UP", DefaultEditorKit.upAction, "KP_UP", DefaultEditorKit.upAction,
+                    "DOWN", DefaultEditorKit.downAction, "KP_DOWN", DefaultEditorKit.downAction,
+                    "shift UP", DefaultEditorKit.selectionUpAction, "shift KP_UP", DefaultEditorKit.selectionUpAction,
+                    "shift DOWN", DefaultEditorKit.selectionDownAction, "shift KP_DOWN", DefaultEditorKit.selectionDownAction,
+                    "PAGE_UP", DefaultEditorKit.pageUpAction, "PAGE_DOWN", DefaultEditorKit.pageDownAction,
+                    "shift PAGE_UP", "selection-page-up", "shift PAGE_DOWN", "selection-page-down",
+                    "ctrl shift PAGE_UP", "selection-page-left", "ctrl shift PAGE_DOWN", "selection-page-right",
+                    "ctrl HOME", DefaultEditorKit.beginAction, "ctrl END", DefaultEditorKit.endAction,
+                    "ctrl shift HOME", DefaultEditorKit.selectionBeginAction, "ctrl shift END", DefaultEditorKit.selectionEndAction,
+                    "ENTER", DefaultEditorKit.insertBreakAction, "TAB", DefaultEditorKit.insertTabAction,
+                    "ctrl T", "next-link-action", "ctrl shift T", "previous-link-action"));
+        } else {
+            b.addAll(java.util.Arrays.asList("ENTER", JTextField.notifyAction));
+        }
+        return b.toArray();
     }
 
     private static ColorUIResource c(Color color) {
