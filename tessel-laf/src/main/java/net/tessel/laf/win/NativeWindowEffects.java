@@ -15,6 +15,7 @@ import com.sun.jna.platform.win32.WinDef.RECT;
 import com.sun.jna.platform.win32.WinDef.WPARAM;
 import com.sun.jna.platform.win32.WinUser;
 import com.sun.jna.ptr.IntByReference;
+import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Window;
@@ -89,6 +90,12 @@ public final class NativeWindowEffects {
     private static final int WM_NCMOUSELEAVE = 0x02A2;
     private static final int WM_NCUAHDRAWCAPTION = 0x00AE;
     private static final int WM_NCUAHDRAWFRAME = 0x00AF;
+    private static final int WM_NCACTIVATE = 0x0086;
+    private static final int WM_NCDESTROY = 0x0082;
+    private static final int WM_SHOWWINDOW = 0x0018;
+    private static final int WM_WINDOWPOSCHANGING = 0x0046;
+    private static final int SWP_HIDEWINDOW = 0x0080;
+    private static final int SWP_SHOWWINDOW = 0x0040;
     private static final int WM_GETMINMAXINFO = 0x0024;
 
     private static final int HTCLIENT = 1;
@@ -102,6 +109,9 @@ public final class NativeWindowEffects {
     private static final int HTBOTTOMLEFT = 16;
     private static final int HTBOTTOMRIGHT = 17;
 
+    /** Hooks stay referenced (the native side calls into them) until their window is destroyed. */
+    private static final java.util.Set<NativeWindowEffects> LIVE = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private final Window window;
     private final FrameModel model;
     private final User32 user32 = User32.INSTANCE;
@@ -110,6 +120,9 @@ public final class NativeWindowEffects {
     private Pointer originalProc;
     private WinUser.WindowProc proc;
     private Hit hoverButton;
+
+    /** True for {@link #installVisualOnly}: no window procedure hook and no changes to the window styles. */
+    private boolean visualOnly;
 
     private NativeWindowEffects(Window window, FrameModel model) {
         this.window = window;
@@ -132,10 +145,34 @@ public final class NativeWindowEffects {
         }
     }
 
+    /**
+     * Gives {@code window} only the visual side of the chrome - DWM drop shadow, Windows 11 rounded corners
+     * and the dark / light caption setting - without the thick-frame styles, the window procedure hook and
+     * native hit-testing. The window then has no system frame at all, so nothing native can flash during
+     * the open and close animations; dragging and resizing are up to the caller (used for dialogs, which
+     * neither snap nor maximize). Returns null on non-Windows platforms or on failure.
+     */
+    public static NativeWindowEffects installVisualOnly(Window window) {
+        if (!Platform.isWindows()) return null;
+        NativeWindowEffects fx = new NativeWindowEffects(window, null);
+        fx.visualOnly = true;
+        try {
+            fx.attach();
+            return fx;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     private void attach() {
         Pointer p = Native.getWindowPointer(window);
         if (p == null) throw new IllegalStateException("no native window handle yet");
         hwnd = new HWND(p);
+        if (visualOnly) {
+            Dwm.INSTANCE.DwmExtendFrameIntoClientArea(hwnd, new Dwm.Margins());
+            Dwm.INSTANCE.DwmSetWindowAttribute(hwnd, Dwm.DWMWA_WINDOW_CORNER_PREFERENCE, new IntByReference(Dwm.DWMWCP_ROUND), 4);
+            return;
+        }
 
         // Install the hook BEFORE changing styles / forcing a frame change: SWP_FRAMECHANGED below
         // triggers a synchronous WM_NCCALCSIZE, and whichever proc is current at that moment decides
@@ -144,8 +181,10 @@ public final class NativeWindowEffects {
         // until something else happens to force a second recalculation, e.g. the user maximizing.
         proc = this::windowProc;
         originalProc = user32.SetWindowLongPtr(hwnd, GWLP_WNDPROC, CallbackReference.getFunctionPointer(proc));
+        LIVE.add(this);
 
-        boolean resizable = !(window instanceof Frame) || ((Frame) window).isResizable();
+        boolean resizable = window instanceof Frame ? ((Frame) window).isResizable()
+                : !(window instanceof Dialog) || ((Dialog) window).isResizable();
         int style = user32.GetWindowLong(hwnd, WinUser.GWL_STYLE);
         style |= WinUser.WS_CAPTION | WinUser.WS_SYSMENU;
         if (resizable) style |= WinUser.WS_THICKFRAME | WinUser.WS_MAXIMIZEBOX | WinUser.WS_MINIMIZEBOX;
@@ -180,12 +219,44 @@ public final class NativeWindowEffects {
                 | WinUser.RDW_FRAME | WinUser.RDW_ALLCHILDREN | WinUser.RDW_UPDATENOW));
     }
 
-    /** Restores the original window procedure; call once, from the window's dispose path. */
+    /**
+     * Called when the window is disposed. The hook is deliberately <em>not</em> removed here: the window
+     * is still on screen while Windows plays its close animation, and with the original window procedure
+     * back it would draw the system title bar and frame over the custom chrome for those last frames.
+     * The hook goes away with the native window ({@code WM_NCDESTROY}).
+     */
     public void uninstall() {
-        if (hwnd != null && originalProc != null) {
-            user32.SetWindowLongPtr(hwnd, GWLP_WNDPROC, originalProc);
-            originalProc = null;
+        // intentionally empty, see above; kept so callers have a single place to say "I am done"
+    }
+
+    /**
+     * Handles an activation change without letting Windows draw its default frame. When the activation
+     * changes (e.g. a modal dialog opens or closes) the default handler paints a light, several pixel wide
+     * frame over the left, right and bottom edges for a moment, because the window keeps the thick-frame
+     * style that native resizing and snapping need. Painting is suppressed by taking {@code WS_VISIBLE}
+     * away while the default procedure runs (the technique Chromium uses for its custom frames);
+     * {@code lParam = -1} additionally tells it to leave the non-client area alone.
+     */
+    private LRESULT ncActivate(HWND hWnd, int msg, WPARAM wParam) {
+        int style = user32.GetWindowLong(hWnd, WinUser.GWL_STYLE);
+        boolean visible = (style & WinUser.WS_VISIBLE) != 0;
+        if (visible) user32.SetWindowLong(hWnd, WinUser.GWL_STYLE, style & ~WinUser.WS_VISIBLE);
+        try {
+            return user32.CallWindowProc(originalProc, hWnd, msg, wParam, new LPARAM(-1));
+        } finally {
+            if (visible) user32.SetWindowLong(hWnd, WinUser.GWL_STYLE, style);
         }
+    }
+
+    /**
+     * The window keeps {@code WS_CAPTION} while shown (native snapping and rounded corners want it), but
+     * Windows' fade-out animation draws a system title bar from that style for the last frames of a closing
+     * window. Taking the bit away as the window is hidden - and giving it back when it is shown - avoids that.
+     */
+    private void setCaptionStyle(HWND hWnd, boolean on) {
+        int style = user32.GetWindowLong(hWnd, WinUser.GWL_STYLE);
+        int updated = on ? style | WinUser.WS_CAPTION : style & ~WinUser.WS_CAPTION;
+        if (updated != style) user32.SetWindowLong(hWnd, WinUser.GWL_STYLE, updated);
     }
 
     private LRESULT windowProc(HWND hWnd, int msg, WPARAM wParam, LPARAM lParam) {
@@ -202,6 +273,22 @@ public final class NativeWindowEffects {
                         if (Win32Ext.INSTANCE.IsZoomed(hWnd)) deflateForMaximized(lParam);
                         return new LRESULT(0);
                     }
+                    break;
+                case WM_NCACTIVATE:
+                    return ncActivate(hWnd, msg, wParam);
+                case WM_WINDOWPOSCHANGING: {
+                    // WINDOWPOS: hwnd, hwndInsertAfter, x, y, cx, cy, flags. This arrives before the window is
+                    // hidden or shown, early enough for the fade animation to see the right style.
+                    int flags = new Pointer(lParam.longValue()).getInt(2L * Native.POINTER_SIZE + 16);
+                    if ((flags & SWP_HIDEWINDOW) != 0) setCaptionStyle(hWnd, false);
+                    else if ((flags & SWP_SHOWWINDOW) != 0) setCaptionStyle(hWnd, true);
+                    break;
+                }
+                case WM_SHOWWINDOW:
+                    setCaptionStyle(hWnd, wParam.intValue() != 0);
+                    break;
+                case WM_NCDESTROY:
+                    LIVE.remove(this);
                     break;
                 case WM_NCHITTEST:
                     return new LRESULT(hitTest(lParam));

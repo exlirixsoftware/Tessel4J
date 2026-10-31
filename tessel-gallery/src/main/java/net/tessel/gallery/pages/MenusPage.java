@@ -14,6 +14,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
+import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
@@ -75,6 +76,51 @@ public class MenusPage extends Page {
         JButton share = new JButton("Share", new FontIcon(Symbol.SHARE));
         toolBar.add(share);
         section("Tool bar", toolBar);
+
+        section("Tool bar overflow", overflowDemo());
+    }
+
+    /** A tool bar in a box of adjustable width: what does not fit moves into the "more" menu. */
+    private static JPanel overflowDemo() {
+        JToolBar bar = new JToolBar();
+        bar.setFloatable(false);
+        bar.add(toolButton(Symbol.ADD, "New"));
+        bar.add(toolButton(Symbol.FOLDER, "Open"));
+        bar.add(toolButton(Symbol.SAVE, "Save"));
+        bar.addSeparator();
+        bar.add(toolButton(Symbol.CUT, "Cut"));
+        bar.add(toolButton(Symbol.COPY, "Copy"));
+        bar.add(toolButton(Symbol.PASTE, "Paste"));
+        bar.addSeparator();
+        JToggleButton bold = new JToggleButton(new FontIcon(Symbol.FONT));
+        bold.setToolTipText("Bold");
+        bar.add(bold);
+        bar.add(toolButton(Symbol.UNDO, "Undo"));
+        bar.add(toolButton(Symbol.REDO, "Redo"));
+        bar.addSeparator();
+        bar.add(new JButton("Share", new FontIcon(Symbol.SHARE)));
+        bar.add(new JButton("Print", new FontIcon(Symbol.PRINT)));
+
+        JPanel box = new JPanel(new BorderLayout()) {
+            @Override
+            public Dimension getMaximumSize() {
+                return getPreferredSize();
+            }
+        };
+        box.setOpaque(false);
+        box.add(bar, BorderLayout.CENTER);
+        box.setPreferredSize(new Dimension(620, 48));
+
+        javax.swing.JSlider width = new javax.swing.JSlider(140, 760, 620);
+        width.addChangeListener(e -> {
+            box.setPreferredSize(new Dimension(width.getValue(), 48));
+            box.revalidate();
+            box.getParent().repaint();
+        });
+        return Layouts.stack(12,
+                Layouts.row(Tessel.label("Available width", TextStyle.BODY), width),
+                Layouts.row(box),
+                Tessel.label("Buttons that do not fit move into the overflow menu; widen the box to bring them back.", TextStyle.CAPTION));
     }
 
     private static JButton toolButton(Symbol symbol, String tooltip) {

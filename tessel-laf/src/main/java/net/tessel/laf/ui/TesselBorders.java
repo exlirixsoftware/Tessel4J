@@ -6,6 +6,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import javax.swing.JScrollPane;
+import javax.swing.JToolBar;
 import javax.swing.JViewport;
 import javax.swing.border.AbstractBorder;
 import javax.swing.plaf.UIResource;
@@ -86,6 +87,99 @@ public final class TesselBorders {
         public void paintBorder(Component c, Graphics g, int x, int y, int w, int h) {
             g.setColor(Tessel.palette().border);
             g.fillRect(x, y + h - 1, w, 1);
+        }
+    }
+
+    /**
+     * Rounded surface of a tool bar, with a grip of dots when the tool bar is floatable.
+     * Nothing is painted when {@link JToolBar#isBorderPainted()} is false.
+     */
+    public static class ToolBarBorder extends AbstractBorder implements UIResource {
+        /** Width (or height, for vertical bars) reserved for the grip. */
+        static final int GRIP = 12;
+
+        @Override
+        public Insets getBorderInsets(Component c, Insets i) {
+            i.set(4, 4, 4, 4);
+            if (c instanceof JToolBar) {
+                JToolBar tb = (JToolBar) c;
+                if (tb.isFloatable()) {
+                    if (tb.getOrientation() == JToolBar.HORIZONTAL) i.left += GRIP;
+                    else i.top += GRIP;
+                }
+            }
+            return i;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int w, int h) {
+            if (!(c instanceof JToolBar) || !((JToolBar) c).isBorderPainted()) return;
+            JToolBar tb = (JToolBar) c;
+            Palette p = Tessel.palette();
+            Graphics2D g2 = UIUtils.create(g);
+            try {
+                g2.setColor(p.surfaceAlt);
+                UIUtils.fillRound(g2, x, y, w, h, 8);
+                g2.setColor(p.border);
+                UIUtils.strokeRound(g2, x, y, w, h, 8, 1f);
+                if (tb.isFloatable()) {
+                    g2.setColor(p.textTertiary);
+                    boolean horizontal = tb.getOrientation() == JToolBar.HORIZONTAL;
+                    // Two lines of three dots across the bar's thickness.
+                    for (int along = 0; along < 3; along++) {
+                        for (int across = 0; across < 2; across++) {
+                            double cx = horizontal ? x + 6 + across * 4 : x + w / 2.0 - 4 + along * 4;
+                            double cy = horizontal ? y + h / 2.0 - 4 + along * 4 : y + 6 + across * 4;
+                            g2.fill(new java.awt.geom.Ellipse2D.Double(cx - 1, cy - 1, 2, 2));
+                        }
+                    }
+                }
+            } finally {
+                g2.dispose();
+            }
+        }
+    }
+
+    /** Rounded surface and outline of an internal frame, with a soft shadow around it. */
+    public static class InternalFrameBorder extends AbstractBorder implements UIResource {
+        /** Space reserved around the frame surface (also the resize zone). */
+        public static final int TOP = 5;
+        public static final int SIDE = 5;
+        public static final int BOTTOM = 7;
+        public static final double RADIUS = 6;
+
+        @Override
+        public Insets getBorderInsets(Component c, Insets i) {
+            i.set(TOP, SIDE, BOTTOM, SIDE);
+            return i;
+        }
+
+        @Override
+        public void paintBorder(Component c, Graphics g, int x, int y, int w, int h) {
+            Palette p = Tessel.palette();
+            boolean selected = false;
+            boolean icon = false;
+            if (c instanceof javax.swing.JInternalFrame) {
+                selected = ((javax.swing.JInternalFrame) c).isSelected();
+                icon = ((javax.swing.JInternalFrame) c).isIcon();
+            } else if (c instanceof javax.swing.JInternalFrame.JDesktopIcon) {
+                selected = ((javax.swing.JInternalFrame.JDesktopIcon) c).getInternalFrame().isSelected();
+                icon = true;
+            }
+            Graphics2D g2 = UIUtils.create(g);
+            try {
+                double sx = x + 2;
+                double sy = y + 2;
+                double sw = w - 4;
+                double sh = h - 6;
+                UIUtils.paintShadow(g2, sx, sy, sw, sh, RADIUS, selected ? 3 : 2);
+                g2.setColor(p.surface);
+                UIUtils.fillRound(g2, sx, sy, sw, sh, RADIUS);
+                g2.setColor(selected ? (icon ? p.accent : p.borderStrong) : p.border);
+                UIUtils.strokeRound(g2, sx, sy, sw, sh, RADIUS, 1f);
+            } finally {
+                g2.dispose();
+            }
         }
     }
 

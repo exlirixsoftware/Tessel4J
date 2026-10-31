@@ -106,7 +106,14 @@ public class TesselComboBoxUI extends javax.swing.plaf.basic.BasicComboBoxUI {
 
             @Override
             protected Rectangle computePopupBounds(int px, int py, int pw, int ph) {
-                return super.computePopupBounds(px, py + 4, pw, ph);
+                // Long items must not be cut off by the scroll bar: grow the popup to fit them (the screen is the limit).
+                int wanted = list.getPreferredSize().width + getInsets().left + getInsets().right;
+                if (comboBox.getItemCount() > comboBox.getMaximumRowCount()) {
+                    wanted += scroller.getVerticalScrollBar().getPreferredSize().width;
+                }
+                java.awt.GraphicsConfiguration gc = comboBox.getGraphicsConfiguration();
+                if (gc != null) wanted = Math.min(wanted, gc.getBounds().width - 32);
+                return super.computePopupBounds(px, py + 4, Math.max(pw, wanted), ph);
             }
         };
     }

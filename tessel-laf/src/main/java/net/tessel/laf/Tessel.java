@@ -32,7 +32,7 @@ import javax.swing.UnsupportedLookAndFeelException;
  */
 public final class Tessel {
 
-    public static final String VERSION = "1.0.0";
+    public static final String VERSION = "1.1.0";
 
     /** Client property: {@link ButtonStyle} (or its name) of a button. */
     public static final String BUTTON_STYLE = "Tessel.buttonStyle";
@@ -45,7 +45,20 @@ public final class Tessel {
     /** Client property: Boolean, draws a check box in the indeterminate (mixed) state. */
     public static final String INDETERMINATE = "Tessel.indeterminate";
 
+    /** Client property: Boolean on a {@code JToolBar}; false keeps every item in the bar instead of using the overflow menu. */
+    public static final String TOOLBAR_OVERFLOW = "Tessel.toolBarOverflow";
+
+    /** Client property: {@link ProgressState} of a {@code JProgressBar}. */
+    public static final String PROGRESS_STATE = "Tessel.progressState";
+
+    /** Client property: Boolean on a {@code JTextPane} or {@code JEditorPane}; false turns off the built-in context menu. */
+    public static final String CONTEXT_MENU = "Tessel.contextMenu";
+
+    /** Client property: Boolean on a {@code JColorChooser}; false hides the opacity (transparency) slider. */
+    public static final String COLOR_CHOOSER_ALPHA = "Tessel.colorChooserAlpha";
+
     private static TesselTheme theme = TesselTheme.LIGHT;
+    private static boolean decoratedDialogs = true;
     private static Color accent;
     private static Palette palette = new Palette(false, null);
     private static final List<Runnable> LISTENERS = new CopyOnWriteArrayList<>();
@@ -90,6 +103,21 @@ public final class Tessel {
         if (c != null) setAccent(c);
     }
 
+    /**
+     * Whether dialogs get Tessel window chrome (title bar, outline, native shadow and rounded corners on
+     * Windows). On by default; it makes every {@code JOptionPane}, {@code JFileChooser}, {@code JColorChooser}
+     * and plain {@code JDialog} created afterwards use {@link net.tessel.laf.ui.TesselRootPaneUI}'s decorations.
+     * Turn it off to keep the operating system's title bars on dialogs.
+     */
+    public static void setDecoratedDialogs(boolean decorated) {
+        decoratedDialogs = decorated;
+        javax.swing.JDialog.setDefaultLookAndFeelDecorated(decorated);
+    }
+
+    public static boolean isDecoratedDialogs() {
+        return decoratedDialogs;
+    }
+
     public static TesselTheme getTheme() {
         return theme;
     }
@@ -123,6 +151,7 @@ public final class Tessel {
         } catch (UnsupportedLookAndFeelException e) {
             throw new IllegalStateException(e);
         }
+        javax.swing.JDialog.setDefaultLookAndFeelDecorated(decoratedDialogs);
         if (updateWindows) {
             for (Window w : Window.getWindows()) {
                 SwingUtilities.updateComponentTreeUI(w);
@@ -147,6 +176,13 @@ public final class Tessel {
         button.revalidate();
         button.repaint();
         return button;
+    }
+
+    /** Sets the {@link ProgressState} of a {@code JProgressBar} (normal, paused, error or success). */
+    public static <T extends JComponent> T progressState(T progressBar, ProgressState state) {
+        progressBar.putClientProperty(PROGRESS_STATE, state == ProgressState.NORMAL ? null : state);
+        progressBar.repaint();
+        return progressBar;
     }
 
     /** Sets the placeholder (hint) text of a text component or combo box. */

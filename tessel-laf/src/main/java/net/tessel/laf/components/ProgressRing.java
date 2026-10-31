@@ -9,13 +9,19 @@ import java.awt.geom.Arc2D;
 import javax.swing.JComponent;
 import javax.swing.Timer;
 import javax.swing.plaf.UIResource;
+import net.tessel.laf.ProgressState;
 import net.tessel.laf.Tessel;
 import net.tessel.laf.ui.UIUtils;
 
-/** An indeterminate spinning progress indicator. */
+/**
+ * An indeterminate spinning progress indicator. A {@link ProgressState} other than {@code NORMAL} stops the
+ * spinning: paused shows a resting arc in the warning color, error and success show a full ring in the danger
+ * and success colors.
+ */
 public class ProgressRing extends JComponent {
 
     private boolean active = true;
+    private ProgressState state = ProgressState.NORMAL;
     private float thickness = 3f;
     private double angle;
     private final Timer timer = new Timer(16, e -> {
@@ -40,6 +46,16 @@ public class ProgressRing extends JComponent {
 
     public void setActive(boolean active) {
         this.active = active;
+        updateTimer();
+        repaint();
+    }
+
+    public ProgressState getState() {
+        return state;
+    }
+
+    public void setState(ProgressState state) {
+        this.state = state == null ? ProgressState.NORMAL : state;
         updateTimer();
         repaint();
     }
@@ -76,7 +92,7 @@ public class ProgressRing extends JComponent {
     }
 
     private void updateTimer() {
-        if (active && isDisplayable()) timer.start();
+        if (active && !state.isFrozen() && isDisplayable()) timer.start();
         else timer.stop();
     }
 
@@ -85,16 +101,23 @@ public class ProgressRing extends JComponent {
         if (!active) return;
         double size = Math.min(getWidth(), getHeight()) - thickness;
         if (size <= 0) return;
-        Color color = getForeground() == null || getForeground() instanceof UIResource ? Tessel.palette().accent : getForeground();
+        Color color = state != ProgressState.NORMAL ? state.color(Tessel.palette())
+                : getForeground() == null || getForeground() instanceof UIResource ? Tessel.palette().accent : getForeground();
         Graphics2D g2 = UIUtils.create(g);
         try {
             double x = (getWidth() - size) / 2.0;
             double y = (getHeight() - size) / 2.0;
             g2.setColor(color);
             g2.setStroke(new BasicStroke(thickness, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            // A sweep that breathes between 60 and 250 degrees while rotating.
-            double sweep = 155 + 95 * Math.sin(Math.toRadians(angle * 2));
-            g2.draw(new Arc2D.Double(x, y, size, size, -angle * 2, sweep, Arc2D.OPEN));
+            if (state == ProgressState.ERROR || state == ProgressState.SUCCESS) {
+                g2.draw(new Arc2D.Double(x, y, size, size, 0, 360, Arc2D.OPEN));
+            } else if (state == ProgressState.PAUSED) {
+                g2.draw(new Arc2D.Double(x, y, size, size, 90, 250, Arc2D.OPEN));
+            } else {
+                // A sweep that breathes between 60 and 250 degrees while rotating.
+                double sweep = 155 + 95 * Math.sin(Math.toRadians(angle * 2));
+                g2.draw(new Arc2D.Double(x, y, size, size, -angle * 2, sweep, Arc2D.OPEN));
+            }
         } finally {
             g2.dispose();
         }

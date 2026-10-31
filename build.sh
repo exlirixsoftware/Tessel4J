@@ -7,7 +7,7 @@
 # Requires JDK 17+. Uses $JAVA_HOME, or the JDK of the 'java' on the PATH.
 set -euo pipefail
 
-VERSION=1.0.0
+VERSION=1.1.0
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 # Git Bash / Cygwin: hand Windows-style paths to the Windows JDK tools.
 if command -v cygpath >/dev/null 2>&1; then ROOT="$(cygpath -m "$ROOT")"; fi
@@ -24,8 +24,10 @@ JAVA="$JDK/bin/java"
 [ -x "$JAVAC" ] || [ -x "$JAVAC.exe" ] || { echo "No JDK found. Set JAVA_HOME to a JDK 17+." >&2; exit 1; }
 echo "Using JDK: $JDK"
 
-rm -rf "$BUILD" "$DIST"
+# Only this version's jars are replaced, so the jars of earlier releases stay in dist/.
+rm -rf "$BUILD"
 mkdir -p "$BUILD/lib" "$BUILD/gallery" "$DIST"
+rm -f "$DIST"/tessel-laf-$VERSION.jar "$DIST"/tessel-laf-$VERSION-sources.jar "$DIST"/tessel-gallery-$VERSION.jar
 LINT='-Xlint:all,-serial,-this-escape'
 
 # JNA gives TesselFrame native Windows chrome (shadow, rounded corners, Snap Layouts); see lib/README.md.

@@ -12,6 +12,8 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JSlider;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import net.tessel.gallery.Layouts;
@@ -20,11 +22,13 @@ import net.tessel.laf.Tessel;
 import net.tessel.laf.TextStyle;
 import net.tessel.laf.components.Avatar;
 import net.tessel.laf.components.Badge;
+import net.tessel.laf.components.BreadcrumbBar;
 import net.tessel.laf.components.Card;
 import net.tessel.laf.components.Expander;
 import net.tessel.laf.components.SettingsCard;
 import net.tessel.laf.components.TextBlock;
 import net.tessel.laf.components.ToggleSwitch;
+import net.tessel.laf.icons.FontIcon;
 import net.tessel.laf.icons.Symbol;
 import net.tessel.laf.ui.UIUtils;
 
@@ -40,6 +44,9 @@ public class LayoutPage extends Page {
                 new Card("Flat card", new TextBlock("A surface with a border, header and padding.", TextStyle.SECONDARY)),
                 elevated,
                 mediaCard()));
+
+        subtitle("Breadcrumb bar");
+        add(breadcrumbDemo());
 
         subtitle("Settings cards");
         JComboBox<String> language = new JComboBox<>(new String[]{"English", "Deutsch", "Română"});
@@ -72,6 +79,39 @@ public class LayoutPage extends Page {
         person.add(new Badge("Admin", Badge.Kind.ACCENT));
         person.add(Box.createHorizontalGlue());
         add(new Card(null, Layouts.stack(0, sizes, new javax.swing.JSeparator(), person)));
+    }
+
+    private static Card breadcrumbDemo() {
+        String[] path = {"Home", "Documents", "Projects", "Tessel4J", "tessel-laf", "src", "main", "java", "net", "tessel", "laf"};
+        BreadcrumbBar bar = new BreadcrumbBar((Object[]) path);
+        bar.setItemIconProvider(o -> "Home".equals(o) ? new FontIcon(Symbol.HOME, 14) : null);
+        bar.setTruncateOnClick(true);
+        JLabel result = Tessel.label("Click an item to go there; the items after it are removed.", TextStyle.SECONDARY);
+        bar.addItemClickListener((b, index, item) -> result.setText("Went to “" + item + "” (item " + (index + 1) + ")"));
+
+        JPanel box = new JPanel(new BorderLayout()) {
+            @Override
+            public Dimension getMaximumSize() {
+                return getPreferredSize();
+            }
+        };
+        box.setOpaque(false);
+        box.add(bar, BorderLayout.CENTER);
+        box.setPreferredSize(new Dimension(640, 36));
+        JSlider width = new JSlider(160, 900, 640);
+        width.addChangeListener(e -> {
+            box.setPreferredSize(new Dimension(width.getValue(), 36));
+            box.revalidate();
+            box.getParent().repaint();
+        });
+        JButton add = new JButton("Add folder");
+        add.addActionListener(e -> bar.addItem("folder " + (bar.getItemCount() + 1)));
+        JButton reset = new JButton("Reset");
+        reset.addActionListener(e -> bar.setItems(java.util.Arrays.asList(path)));
+
+        return new Card(null, Layouts.stack(12, Layouts.row(Tessel.label("Available width", TextStyle.BODY), width),
+                Layouts.row(box), result, Layouts.row(add, reset),
+                Tessel.label("When the bar is too narrow the first items collapse into a \"...\" menu.", TextStyle.CAPTION)));
     }
 
     private static Card mediaCard() {

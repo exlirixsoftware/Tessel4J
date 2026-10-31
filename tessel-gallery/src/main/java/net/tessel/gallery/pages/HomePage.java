@@ -37,7 +37,7 @@ public class HomePage extends Page {
                 feature(Symbol.CODE, "Drop-in", "Pure Java 17+, no dependencies. Works with any Swing application.")));
 
         JPanel started = Layouts.stack(8,
-                new TextBlock("1. Add tessel-laf-1.0.0.jar to your classpath and install the look and feel on the EDT:", TextStyle.SECONDARY),
+                new TextBlock("1. Add tessel-laf-1.1.0.jar to your classpath and install the look and feel on the EDT:", TextStyle.SECONDARY),
                 code("SwingUtilities.invokeLater(() -> {\n"
                         + "    Tessel.setup(TesselTheme.SYSTEM);\n"
                         + "    new MyFrame().setVisible(true);\n"

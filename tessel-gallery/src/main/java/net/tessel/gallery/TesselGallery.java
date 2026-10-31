@@ -7,8 +7,7 @@ import net.tessel.laf.TesselTheme;
 /** Entry point of the Tessel gallery. */
 public final class TesselGallery {
 
-    private TesselGallery() {
-    }
+    private TesselGallery() {}
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {

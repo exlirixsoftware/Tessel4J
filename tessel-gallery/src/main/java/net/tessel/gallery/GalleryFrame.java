@@ -14,14 +14,18 @@ import javax.swing.WindowConstants;
 import net.tessel.gallery.pages.ButtonsPage;
 import net.tessel.gallery.pages.CollectionsPage;
 import net.tessel.gallery.pages.DesignPage;
+import net.tessel.gallery.pages.DialogsPage;
 import net.tessel.gallery.pages.FeedbackPage;
 import net.tessel.gallery.pages.HomePage;
 import net.tessel.gallery.pages.IconsPage;
 import net.tessel.gallery.pages.InputsPage;
 import net.tessel.gallery.pages.LayoutPage;
 import net.tessel.gallery.pages.MenusPage;
+import net.tessel.gallery.pages.PickersPage;
+import net.tessel.gallery.pages.RichTextPage;
 import net.tessel.gallery.pages.SelectionPage;
 import net.tessel.gallery.pages.SettingsPage;
+import net.tessel.gallery.pages.TabsPage;
 import net.tessel.laf.ButtonStyle;
 import net.tessel.laf.Tessel;
 import net.tessel.laf.TesselTheme;
@@ -38,7 +42,7 @@ public class GalleryFrame extends TesselFrame {
     private final JButton themeButton = new JButton();
 
     public GalleryFrame() {
-        super("Tessel Gallery");
+        super("Tessel4J Gallery");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setIconSize(20);
         List<Image> icons = loadIcons();
@@ -63,10 +67,14 @@ public class GalleryFrame extends TesselFrame {
         navigation.addHeader("Controls");
         navigation.addItem("Buttons", Symbol.TOUCH_POINTER, () -> new ButtonsPage().scroll());
         navigation.addItem("Text & Input", Symbol.EDIT, () -> new InputsPage().scroll());
+        navigation.addItem("Rich Text", Symbol.FONT, () -> new RichTextPage().scroll());
         navigation.addItem("Selection", Symbol.CHECKBOX_COMPOSITE, () -> new SelectionPage().scroll());
         navigation.addItem("Collections", Symbol.LIST, () -> new CollectionsPage().scroll());
         navigation.addItem("Feedback", Symbol.MESSAGE, () -> new FeedbackPage().scroll());
+        navigation.addItem("Dialogs", Symbol.COMMENT, () -> new DialogsPage().scroll());
         navigation.addItem("Layout", Symbol.VIEW_ALL, () -> new LayoutPage().scroll());
+        navigation.addItem("Tabs & Windows", Symbol.DOCUMENT, () -> new TabsPage().scroll());
+        navigation.addItem("Pickers", Symbol.FOLDER, () -> new PickersPage().scroll());
         navigation.addItem("Menus & Tooltips", Symbol.MORE, () -> new MenusPage().scroll());
         navigation.addHeader("Design");
         navigation.addItem("Colors & Type", Symbol.COLOR, () -> new DesignPage().scroll());

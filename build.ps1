@@ -7,7 +7,7 @@
 param([switch]$Run)
 
 $ErrorActionPreference = 'Stop'
-$version = '1.0.0'
+$version = '1.1.0'
 $root = $PSScriptRoot
 $build = Join-Path $root 'build'
 $dist = Join-Path $root 'dist'
@@ -36,10 +36,11 @@ function Get-Sources($dir) {
     Get-ChildItem -Recurse -Path $dir -Filter *.java | ForEach-Object { '"' + ($_.FullName -replace '\\', '/') + '"' }
 }
 
-foreach ($d in @($build, $dist)) {
-    if (Test-Path $d) { Get-ChildItem $d -Force | Remove-Item -Recurse -Force }
-    else { New-Item -ItemType Directory $d | Out-Null }
-}
+# Only this version's jars are replaced, so the jars of earlier releases stay in dist/.
+if (Test-Path $build) { Get-ChildItem $build -Force | Remove-Item -Recurse -Force }
+else { New-Item -ItemType Directory $build | Out-Null }
+if (-not (Test-Path $dist)) { New-Item -ItemType Directory $dist | Out-Null }
+Get-ChildItem $dist -Filter "*-$version*.jar" | Remove-Item -Force
 $libClasses = Join-Path $build 'lib'
 $galleryClasses = Join-Path $build 'gallery'
 New-Item -ItemType Directory $libClasses, $galleryClasses | Out-Null

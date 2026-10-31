@@ -7,15 +7,20 @@ import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.geom.RoundRectangle2D;
+import java.beans.PropertyChangeListener;
 import javax.swing.JComponent;
 import javax.swing.JProgressBar;
 import javax.swing.LookAndFeel;
 import javax.swing.plaf.ComponentUI;
 import javax.swing.plaf.UIResource;
 import javax.swing.plaf.basic.BasicProgressBarUI;
+import net.tessel.laf.ProgressState;
 import net.tessel.laf.Tessel;
 
-/** Thin rounded progress bars with an indeterminate sliding segment. */
+/**
+ * Thin rounded progress bars with an indeterminate sliding segment and the {@link ProgressState}s: paused
+ * (warning color), error (danger) and success.
+ */
 public class TesselProgressBarUI extends BasicProgressBarUI {
 
     public static ComponentUI createUI(JComponent c) {
@@ -26,6 +31,39 @@ public class TesselProgressBarUI extends BasicProgressBarUI {
     protected void installDefaults() {
         super.installDefaults();
         LookAndFeel.installProperty(progressBar, "opaque", Boolean.FALSE);
+    }
+
+    private final PropertyChangeListener stateListener = e -> {
+        if (state().isFrozen()) {
+            stopAnimationTimer();
+        } else if (progressBar.isIndeterminate() && progressBar.isDisplayable()) {
+            startAnimationTimer();
+        }
+        progressBar.repaint();
+    };
+
+    @Override
+    protected void installListeners() {
+        super.installListeners();
+        progressBar.addPropertyChangeListener(Tessel.PROGRESS_STATE, stateListener);
+    }
+
+    @Override
+    protected void uninstallListeners() {
+        progressBar.removePropertyChangeListener(Tessel.PROGRESS_STATE, stateListener);
+        super.uninstallListeners();
+    }
+
+    /** A paused, failed or finished bar does not animate. */
+    @Override
+    protected void startAnimationTimer() {
+        if (state().isFrozen()) return;
+        super.startAnimationTimer();
+    }
+
+    private ProgressState state() {
+        Object s = progressBar.getClientProperty(Tessel.PROGRESS_STATE);
+        return s instanceof ProgressState ? (ProgressState) s : ProgressState.NORMAL;
     }
 
     @Override
@@ -44,7 +82,10 @@ public class TesselProgressBarUI extends BasicProgressBarUI {
         return bg == null || bg instanceof UIResource ? Tessel.palette().subtle : bg;
     }
 
+    /** The state color wins; in the normal state an explicitly set foreground is used. */
     private Color fill() {
+        ProgressState state = state();
+        if (state != ProgressState.NORMAL) return state.color(Tessel.palette());
         Color fg = progressBar.getForeground();
         return fg == null || fg instanceof UIResource ? Tessel.palette().accent : fg;
     }
@@ -87,12 +128,26 @@ public class TesselProgressBarUI extends BasicProgressBarUI {
             double r = Math.min(Math.min(w, h), 4) / 2.0;
             g2.setColor(track());
             UIUtils.fillRound(g2, b.left, b.top, w, h, r);
-            boxRect = getBox(boxRect);
-            if (boxRect != null) {
-                g2.clip(new RoundRectangle2D.Double(b.left, b.top, w, h, r * 2, r * 2));
+            ProgressState state = state();
+            boolean horizontal = progressBar.getOrientation() == JProgressBar.HORIZONTAL;
+            if (state == ProgressState.ERROR || state == ProgressState.SUCCESS) {
+                // Nothing is in progress any more: the whole track shows the outcome.
                 g2.setColor(fill());
-                Rectangle box = boxRect;
-                UIUtils.fillRound(g2, box.x, box.y, box.width, box.height, r);
+                UIUtils.fillRound(g2, b.left, b.top, w, h, r);
+            } else if (state == ProgressState.PAUSED) {
+                // A stopped segment, resting in the middle of the track.
+                int length = getBoxLength(horizontal ? w : h, 0);
+                g2.setColor(fill());
+                if (horizontal) UIUtils.fillRound(g2, b.left + (w - length) / 2.0, b.top, length, h, r);
+                else UIUtils.fillRound(g2, b.left, b.top + (h - length) / 2.0, w, length, r);
+            } else {
+                boxRect = getBox(boxRect);
+                if (boxRect != null) {
+                    g2.clip(new RoundRectangle2D.Double(b.left, b.top, w, h, r * 2, r * 2));
+                    g2.setColor(fill());
+                    Rectangle box = boxRect;
+                    UIUtils.fillRound(g2, box.x, box.y, box.width, box.height, r);
+                }
             }
             if (progressBar.isStringPainted()) {
                 g2.setClip(null);

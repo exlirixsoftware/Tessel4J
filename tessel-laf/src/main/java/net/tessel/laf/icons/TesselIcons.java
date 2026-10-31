@@ -44,6 +44,31 @@ public final class TesselIcons {
         return new SeverityIcon(severity, size);
     }
 
+    /** A filled accent circle with a question mark (the "question" icon of option panes). */
+    public static Icon question(int size) {
+        return new QuestionIcon(size);
+    }
+
+    /** A vector glyph that takes the foreground color of the component it is painted on. */
+    public static ShapeIcon of(Kind kind, int size) {
+        return new ShapeIcon(kind, size, null);
+    }
+
+    /** A vector glyph with a palette color that follows theme changes, e.g. {@code p -> p.accent}. */
+    public static ShapeIcon of(Kind kind, int size, Function<Palette, Color> color) {
+        return new ShapeIcon(kind, size, color);
+    }
+
+    /** The glyphs available through {@link #of(Kind, int)}. All are drawn as vectors on a 16 unit grid. */
+    public enum Kind {
+        PLUS, MINUS, MORE,
+        ARROW_UP, ARROW_DOWN, ARROW_LEFT, ARROW_RIGHT,
+        NEW_FOLDER, VIEW_LIST, VIEW_DETAILS, VIEW_TILES,
+        DRIVE, COMPUTER, HOME, DESKTOP, DOCUMENTS, DOWNLOADS, PICTURES, FOLDER, FILE,
+        MINIMIZE, MAXIMIZE, RESTORE, CLOSE, WINDOW,
+        SEARCH, EYEDROPPER
+    }
+
     // ------------------------------------------------------------------ base
 
     private abstract static class VectorIcon implements Icon, UIResource {
@@ -195,6 +220,209 @@ public final class TesselIcons {
                     g.fill(new Ellipse2D.Double(s / 2 - s * 0.065, s * 0.24, s * 0.13, s * 0.13));
                     break;
             }
+        }
+    }
+
+    /** A {@link Kind} glyph. Without an explicit color it uses the foreground of the painted component. */
+    public static final class ShapeIcon implements Icon, UIResource {
+        private final Kind kind;
+        private final int size;
+        private final Function<Palette, Color> color;
+
+        ShapeIcon(Kind kind, int size, Function<Palette, Color> color) {
+            this.kind = kind;
+            this.size = size;
+            this.color = color;
+        }
+
+        public Kind getKind() {
+            return kind;
+        }
+
+        public boolean hasOwnColor() {
+            return color != null;
+        }
+
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            paintIcon(c, g, x, y, null);
+        }
+
+        /** Paints with {@code override} as color when the icon has no color of its own. */
+        public void paintIcon(Component c, Graphics g, int x, int y, Color override) {
+            Palette p = Tessel.palette();
+            Color col = color != null ? color.apply(p) : override != null ? override : c != null ? c.getForeground() : p.text;
+            Graphics2D g2 = UIUtils.create(g);
+            try {
+                g2.translate(x, y);
+                g2.scale(size / 16.0, size / 16.0);
+                g2.setColor(col);
+                g2.setStroke(new BasicStroke(1.25f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                draw(g2, p);
+            } finally {
+                g2.dispose();
+            }
+        }
+
+        private static void line(Graphics2D g, double x1, double y1, double x2, double y2) {
+            g.draw(new java.awt.geom.Line2D.Double(x1, y1, x2, y2));
+        }
+
+        private static void poly(Graphics2D g, boolean close, double... xy) {
+            Path2D path = new Path2D.Double();
+            path.moveTo(xy[0], xy[1]);
+            for (int i = 2; i < xy.length; i += 2) path.lineTo(xy[i], xy[i + 1]);
+            if (close) path.closePath();
+            g.draw(path);
+        }
+
+        private static void rect(Graphics2D g, double x, double y, double w, double h, double r) {
+            g.draw(new java.awt.geom.RoundRectangle2D.Double(x, y, w, h, r * 2, r * 2));
+        }
+
+        private void draw(Graphics2D g, Palette p) {
+            switch (kind) {
+                case PLUS:
+                    line(g, 8, 3, 8, 13);
+                    line(g, 3, 8, 13, 8);
+                    break;
+                case MINUS:
+                    line(g, 3, 8, 13, 8);
+                    break;
+                case MORE:
+                    for (double cx : new double[]{3.5, 8, 12.5}) g.fill(new Ellipse2D.Double(cx - 1.25, 6.75, 2.5, 2.5));
+                    break;
+                case ARROW_UP:
+                case ARROW_DOWN:
+                case ARROW_LEFT:
+                case ARROW_RIGHT: {
+                    double angle = kind == Kind.ARROW_UP ? 0 : kind == Kind.ARROW_RIGHT ? Math.PI / 2
+                            : kind == Kind.ARROW_DOWN ? Math.PI : -Math.PI / 2;
+                    g.rotate(angle, 8, 8);
+                    line(g, 8, 13.5, 8, 2.5);
+                    poly(g, false, 3.5, 7, 8, 2.5, 12.5, 7);
+                    break;
+                }
+                case NEW_FOLDER:
+                    poly(g, true, 1.5, 3.5, 5.5, 3.5, 7, 5, 12.5, 5, 12.5, 7.5, 12.5, 7.5, 1.5, 7.5);
+                    poly(g, false, 1.5, 3.5, 1.5, 12.5, 8, 12.5);
+                    line(g, 12, 9.5, 12, 14);
+                    line(g, 9.75, 11.75, 14.25, 11.75);
+                    break;
+                case VIEW_LIST:
+                    for (double y : new double[]{4, 8, 12}) {
+                        g.fill(new Ellipse2D.Double(2, y - 1, 2, 2));
+                        line(g, 6, y, 14, y);
+                    }
+                    break;
+                case VIEW_DETAILS:
+                    rect(g, 2, 3, 12, 10, 1.5);
+                    line(g, 2, 6.5, 14, 6.5);
+                    line(g, 2, 9.75, 14, 9.75);
+                    line(g, 6.5, 6.5, 6.5, 13);
+                    break;
+                case VIEW_TILES:
+                    rect(g, 2.5, 2.5, 4.5, 4.5, 1);
+                    rect(g, 9, 2.5, 4.5, 4.5, 1);
+                    rect(g, 2.5, 9, 4.5, 4.5, 1);
+                    rect(g, 9, 9, 4.5, 4.5, 1);
+                    break;
+                case DRIVE:
+                    rect(g, 1.5, 8, 13, 5, 1.5);
+                    poly(g, false, 2.5, 8, 4, 3.5, 12, 3.5, 13.5, 8);
+                    g.fill(new Ellipse2D.Double(10.75, 9.75, 1.5, 1.5));
+                    break;
+                case COMPUTER:
+                case DESKTOP:
+                    rect(g, 2, 2.5, 12, 8.5, 1.5);
+                    line(g, 8, 11, 8, 13.5);
+                    line(g, 5, 13.5, 11, 13.5);
+                    break;
+                case HOME:
+                    poly(g, false, 1.75, 8, 8, 2.5, 14.25, 8);
+                    poly(g, false, 3.5, 6.75, 3.5, 13.5, 12.5, 13.5, 12.5, 6.75);
+                    poly(g, false, 6.5, 13.5, 6.5, 9.5, 9.5, 9.5, 9.5, 13.5);
+                    break;
+                case DOCUMENTS:
+                    poly(g, false, 9.5, 1.5, 3.5, 1.5, 3.5, 14.5, 12.5, 14.5, 12.5, 4.5, 9.5, 1.5, 9.5, 4.5, 12.5, 4.5);
+                    line(g, 5.75, 8, 10.25, 8);
+                    line(g, 5.75, 10.5, 10.25, 10.5);
+                    break;
+                case DOWNLOADS:
+                    line(g, 8, 2.5, 8, 10.5);
+                    poly(g, false, 4.5, 7.25, 8, 10.75, 11.5, 7.25);
+                    poly(g, false, 2.5, 11.5, 2.5, 13.5, 13.5, 13.5, 13.5, 11.5);
+                    break;
+                case PICTURES:
+                    rect(g, 1.75, 3, 12.5, 10, 1.5);
+                    poly(g, false, 2.5, 11.5, 6, 7.5, 9, 10.5, 10.75, 9, 13.5, 11.75);
+                    g.fill(new Ellipse2D.Double(9.75, 5.25, 2, 2));
+                    break;
+                case FOLDER:
+                    poly(g, true, 1.5, 3.5, 6, 3.5, 7.5, 5, 14.5, 5, 14.5, 12.5, 1.5, 12.5);
+                    break;
+                case FILE:
+                    poly(g, false, 9.5, 1.5, 3.5, 1.5, 3.5, 14.5, 12.5, 14.5, 12.5, 4.5, 9.5, 1.5, 9.5, 4.5, 12.5, 4.5);
+                    break;
+                case MINIMIZE:
+                    line(g, 3.5, 8.5, 12.5, 8.5);
+                    break;
+                case MAXIMIZE:
+                    rect(g, 3.5, 3.5, 9, 9, 1.5);
+                    break;
+                case RESTORE:
+                    rect(g, 3.5, 5.5, 7, 7, 1.25);
+                    poly(g, false, 5.75, 3.25, 11.25, 3.25, 12.75, 4.75, 12.75, 10.25);
+                    break;
+                case CLOSE:
+                    line(g, 4, 4, 12, 12);
+                    line(g, 12, 4, 4, 12);
+                    break;
+                case WINDOW:
+                    rect(g, 2, 3, 12, 10, 1.75);
+                    line(g, 2, 6.25, 14, 6.25);
+                    break;
+                case SEARCH:
+                    g.draw(new Ellipse2D.Double(2.5, 2.5, 8.5, 8.5));
+                    line(g, 9.5, 9.5, 13.5, 13.5);
+                    break;
+                case EYEDROPPER:
+                    g.setStroke(new BasicStroke(3.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    line(g, 10, 6, 12.5, 3.5);
+                    g.setStroke(new BasicStroke(1.25f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    poly(g, false, 9.5, 5.5, 3.5, 11.5, 2.5, 13.5, 4.5, 12.5, 10.5, 6.5);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        @Override
+        public int getIconWidth() {
+            return size;
+        }
+
+        @Override
+        public int getIconHeight() {
+            return size;
+        }
+    }
+
+    public static final class QuestionIcon extends VectorIcon {
+        public QuestionIcon(int size) {
+            super(size);
+        }
+
+        @Override
+        protected void paint(Component c, Graphics2D g, Palette p) {
+            g.setColor(p.accent);
+            g.fill(new Ellipse2D.Double(0, 0, size, size));
+            g.setColor(p.onAccent);
+            g.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING, java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            java.awt.Font font = net.tessel.laf.Fonts.semibold((float) (size * 0.62));
+            g.setFont(font);
+            java.awt.FontMetrics fm = g.getFontMetrics();
+            g.drawString("?", (size - fm.stringWidth("?")) / 2f, (size - fm.getHeight()) / 2f + fm.getAscent());
         }
     }
 

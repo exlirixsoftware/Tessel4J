@@ -3,6 +3,7 @@ package net.tessel.gallery.pages;
 import java.awt.BorderLayout;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
@@ -13,6 +14,7 @@ import javax.swing.event.DocumentListener;
 import net.tessel.gallery.Layouts;
 import net.tessel.gallery.Page;
 import net.tessel.laf.ButtonStyle;
+import net.tessel.laf.ProgressState;
 import net.tessel.laf.Severity;
 import net.tessel.laf.Tessel;
 import net.tessel.laf.TextStyle;
@@ -21,6 +23,7 @@ import net.tessel.laf.components.ContentDialog;
 import net.tessel.laf.components.InfoBar;
 import net.tessel.laf.components.ProgressRing;
 import net.tessel.laf.components.Snackbar;
+import net.tessel.laf.components.TeachingTip;
 import net.tessel.laf.components.ToggleSwitch;
 import net.tessel.laf.icons.FontIcon;
 import net.tessel.laf.icons.Symbol;
@@ -66,6 +69,9 @@ public class FeedbackPage extends Page {
         progress.add(rings, BorderLayout.EAST);
         section("Progress", progress);
 
+        // Progress states
+        section("Progress states", progressStates());
+
         // Info bars
         InfoBar warning = new InfoBar(Severity.WARNING, "Heads up", "Your subscription expires in 3 days.");
         warning.setAction(Tessel.style(new JButton("Renew"), ButtonStyle.OUTLINE));
@@ -101,6 +107,91 @@ public class FeedbackPage extends Page {
         JButton input = new JButton("Dialog with input");
         input.addActionListener(e -> showInput());
         section("ContentDialog", Layouts.stack(12, Layouts.row(confirm, destructive, input), dialogResult));
+
+        // Teaching tips
+        JButton auto = Tessel.style(new JButton("Show a tip"), ButtonStyle.ACCENT);
+        TeachingTip autoTip = new TeachingTip("Save your work", "Press Ctrl+S at any time to save the current document. "
+                + "The tip picks the side with the most room.");
+        autoTip.setActionButton("Got it", () -> Snackbar.show(this, "Tip dismissed", null, Severity.SUCCESS));
+        autoTip.setCloseButtonText("Remind me later");
+        autoTip.setIcon(new FontIcon(Symbol.LIGHTBULB, 16));
+        auto.addActionListener(e -> autoTip.show(auto));
+
+        JPanel placements = Layouts.row();
+        for (TeachingTip.Placement placement : new TeachingTip.Placement[]{
+                TeachingTip.Placement.TOP, TeachingTip.Placement.BOTTOM, TeachingTip.Placement.LEFT, TeachingTip.Placement.RIGHT}) {
+            String name = placement.name().charAt(0) + placement.name().substring(1).toLowerCase();
+            JButton b = new JButton(name);
+            TeachingTip tip = new TeachingTip("Placed " + name.toLowerCase(), "This tip points at its button from the " + name.toLowerCase() + ".");
+            tip.setPlacement(placement);
+            tip.setContentWidth(260);
+            b.addActionListener(e -> tip.show(b));
+            placements.add(b);
+        }
+
+        JButton flyout = new JButton("Flyout (no tail)");
+        TeachingTip flyoutTip = new TeachingTip("Quick settings", "Without a tail the tip becomes a flyout with any content.");
+        flyoutTip.setTailVisible(false);
+        flyoutTip.setCloseButtonVisible(false);
+        flyoutTip.setContentWidth(280);
+        javax.swing.JCheckBox notifications = new javax.swing.JCheckBox("Notifications", true);
+        ToggleSwitch dnd = new ToggleSwitch("Do not disturb", false);
+        flyoutTip.setContent(Layouts.stack(4, notifications, dnd));
+        flyout.addActionListener(e -> flyoutTip.show(flyout));
+
+        section("TeachingTip", Layouts.stack(12,
+                Layouts.row(auto, flyout),
+                Layouts.row(Tessel.label("Fixed placement", TextStyle.BODY)),
+                placements,
+                Tessel.label("Press Esc or click anywhere else to dismiss a tip.", TextStyle.CAPTION)));
+    }
+
+    private static JPanel progressStates() {
+        String[] names = {"Normal", "Paused", "Error", "Success"};
+        ProgressState[] states = ProgressState.values();
+        JPanel rows = Layouts.stack(10);
+        for (int i = 0; i < states.length; i++) {
+            JProgressBar bar = new JProgressBar(0, 100);
+            bar.setValue(states[i] == ProgressState.SUCCESS ? 100 : 60);
+            Tessel.progressState(bar, states[i]);
+            JProgressBar busy = new JProgressBar();
+            busy.setIndeterminate(true);
+            Tessel.progressState(busy, states[i]);
+            rows.add(Layouts.columns(24, Layouts.stack(4, Tessel.label(names[i], TextStyle.BODY), bar),
+                    Layouts.stack(4, Tessel.label(names[i] + " (indeterminate)", TextStyle.BODY), busy)));
+        }
+
+        // One bar and one ring driven by a selector.
+        JComboBox<String> chooser = new JComboBox<>(names);
+        JProgressBar live = new JProgressBar(0, 100);
+        live.setValue(45);
+        JProgressBar liveBusy = new JProgressBar();
+        liveBusy.setIndeterminate(true);
+        ProgressRing ring = new ProgressRing(32);
+        chooser.addActionListener(e -> {
+            ProgressState st = states[chooser.getSelectedIndex()];
+            Tessel.progressState(live, st);
+            Tessel.progressState(liveBusy, st);
+            ring.setState(st);
+        });
+        JPanel ringRow = Layouts.row(new ProgressRing(32), ring);
+        ProgressRing paused = new ProgressRing(32);
+        paused.setState(ProgressState.PAUSED);
+        ProgressRing error = new ProgressRing(32);
+        error.setState(ProgressState.ERROR);
+        ProgressRing done = new ProgressRing(32);
+        done.setState(ProgressState.SUCCESS);
+        JPanel rings = Layouts.row(new ProgressRing(32), paused, error, done);
+
+        rows.add(Tessel.label("Rings: normal, paused, error, success", TextStyle.BODY));
+        rows.add(rings);
+        rows.add(Layouts.field("Try a state on live indicators", chooser));
+        rows.add(live);
+        rows.add(liveBusy);
+        rows.add(ringRow);
+        rows.add(Tessel.label("Tessel.progressState(bar, ProgressState.PAUSED) / ProgressRing.setState(...). Paused and error stop an "
+                + "indeterminate animation; error and success fill an indeterminate bar.", TextStyle.CAPTION));
+        return rows;
     }
 
     private JButton snackButton(String text, Severity severity, String title, String message) {

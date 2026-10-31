@@ -52,7 +52,7 @@ final class TextSupport {
         Rectangle2D r;
         try {
             r = ui.modelToView2D(c, 0, Position.Bias.Forward);
-        } catch (BadLocationException e) {
+        } catch (BadLocationException | RuntimeException e) {
             return;
         }
         if (r == null) return;

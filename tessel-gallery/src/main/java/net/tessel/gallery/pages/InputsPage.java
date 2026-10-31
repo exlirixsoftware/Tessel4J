@@ -18,6 +18,7 @@ import net.tessel.gallery.Layouts;
 import net.tessel.gallery.Page;
 import net.tessel.laf.Tessel;
 import net.tessel.laf.TextStyle;
+import net.tessel.laf.components.NumberBox;
 import net.tessel.laf.icons.FontIcon;
 import net.tessel.laf.icons.Symbol;
 
@@ -81,6 +82,38 @@ public class InputsPage extends Page {
                 Layouts.field("Quantity (0-100)", quantity),
                 Layouts.field("Price", price),
                 Layouts.field("Due date", date)));
+
+        // Number boxes
+        NumberBox amount = new NumberBox(12, 0, 100);
+        NumberBox money = new NumberBox(19.99, 0, 10000);
+        money.setPrefix("$");
+        money.setFractionDigits(2, 2);
+        money.setSmallChange(0.25);
+        money.setSpinButtonPlacement(NumberBox.SpinButtonPlacement.COMPACT);
+        NumberBox expression = new NumberBox(42);
+        expression.setSpinButtonPlacement(NumberBox.SpinButtonPlacement.HIDDEN);
+        NumberBox weight = new NumberBox(72.5, 0, 300);
+        weight.setSuffix(" kg");
+        weight.setSmallChange(0.5);
+        NumberBox optional = new NumberBox();
+        optional.setNullable(true);
+        optional.setValue(Double.NaN);
+        optional.setPlaceholder("Optional");
+        NumberBox wrapping = new NumberBox(23, 0, 23);
+        wrapping.setWrapEnabled(true);
+        wrapping.setSuffix(" h");
+        JLabel numberResult = Tessel.label("Value: 12", TextStyle.SECONDARY);
+        amount.addChangeListener(e -> numberResult.setText("Value: " + amount.getValue()));
+        section("NumberBox", Layouts.stack(16,
+                Layouts.columns(16,
+                        Layouts.field("Quantity (0-100)", amount),
+                        Layouts.field("Price (compact buttons)", money),
+                        Layouts.field("Weight", weight)),
+                Layouts.columns(16,
+                        Layouts.field("Expression: type 12*3+4", expression),
+                        Layouts.field("Optional (can be empty)", optional),
+                        Layouts.field("Hour (wraps around)", wrapping)),
+                numberResult));
 
         // Sliders
         JSlider volume = new JSlider(0, 100, 64);

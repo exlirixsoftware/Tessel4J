@@ -107,7 +107,7 @@ public class TesselListUI extends BasicListUI {
             try {
                 g2.setColor(current ? p.subtle : p.controlHover);
                 UIUtils.fillRound(g2, rowBounds.x, rowBounds.y + 1, rowBounds.width, rowBounds.height - 2, 4);
-                if (current) {
+                if (current && list.getLayoutOrientation() == JList.VERTICAL) {
                     g2.setColor(p.accent);
                     int h = Math.min(16, rowBounds.height - 8);
                     UIUtils.fillRound(g2, rowBounds.x + 1, rowBounds.y + (rowBounds.height - h) / 2.0, 3, h, 1.5);

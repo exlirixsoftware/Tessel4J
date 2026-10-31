@@ -20,6 +20,7 @@ import net.tessel.laf.ButtonStyle;
 import net.tessel.laf.Palette;
 import net.tessel.laf.Tessel;
 import net.tessel.laf.icons.FontIcon;
+import net.tessel.laf.icons.TesselIcons;
 
 /** Painting shared by {@link TesselButtonUI} and {@link TesselToggleButtonUI}. */
 final class ButtonPainter {
@@ -163,6 +164,8 @@ final class ButtonPainter {
 
         if (icon instanceof FontIcon) {
             ((FontIcon) icon).paintIcon(b, g, iconRect.x, iconRect.y, c == null ? null : c.foreground);
+        } else if (icon instanceof TesselIcons.ShapeIcon) {
+            ((TesselIcons.ShapeIcon) icon).paintIcon(b, g, iconRect.x, iconRect.y, c == null ? null : c.foreground);
         } else {
             icon.paintIcon(b, g, iconRect.x, iconRect.y);
         }

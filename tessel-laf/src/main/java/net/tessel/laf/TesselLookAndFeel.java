@@ -68,7 +68,8 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
 
     @Override
     public boolean getSupportsWindowDecorations() {
-        return false;
+        // Lets decorated JDialogs (JOptionPane, file and color choosers, ...) use Tessel's title bar.
+        return true;
     }
 
     @Override
@@ -105,6 +106,8 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
                 "PasswordFieldUI", p + "TesselPasswordFieldUI",
                 "FormattedTextFieldUI", p + "TesselFormattedTextFieldUI",
                 "TextAreaUI", p + "TesselTextAreaUI",
+                "EditorPaneUI", p + "TesselEditorPaneUI",
+                "TextPaneUI", p + "TesselTextPaneUI",
                 "ComboBoxUI", p + "TesselComboBoxUI",
                 "ListUI", p + "TesselListUI",
                 "ScrollBarUI", p + "TesselScrollBarUI",
@@ -123,6 +126,14 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
                 "MenuUI", p + "TesselMenuUIs$MenuUI",
                 "CheckBoxMenuItemUI", p + "TesselMenuUIs$CheckBoxMenuItemUI",
                 "RadioButtonMenuItemUI", p + "TesselMenuUIs$RadioButtonMenuItemUI",
+                "ToolBarUI", p + "TesselToolBarUI",
+                "ToolBarSeparatorUI", p + "TesselToolBarSeparatorUI",
+                "InternalFrameUI", p + "TesselInternalFrameUI",
+                "DesktopIconUI", p + "TesselDesktopIconUI",
+                "FileChooserUI", p + "TesselFileChooserUI",
+                "ColorChooserUI", p + "TesselColorChooserUI",
+                "RootPaneUI", p + "TesselRootPaneUI",
+                "OptionPaneUI", p + "TesselOptionPaneUI",
         });
         table.put("ClassLoader", TesselLookAndFeel.class.getClassLoader());
     }
@@ -164,6 +175,8 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
     @Override
     protected void initComponentDefaults(UIDefaults table) {
         super.initComponentDefaults(table);
+        // Localized texts of the file chooser ("File name:", "Details", ...) live in Metal's bundle.
+        table.addResourceBundle("com.sun.swing.internal.plaf.metal.resources.metal");
         Palette p = palette;
 
         FontUIResource font = new FontUIResource(Fonts.regular(14));
@@ -236,7 +249,7 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
                 "Viewport.background", surface,
                 "Viewport.foreground", text,
                 "RootPane.background", background,
-                "Desktop.background", background,
+                "Desktop.background", subtle,
                 "ColorChooser.background", background,
                 "ColorChooser.foreground", text,
 
@@ -322,6 +335,7 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
                 "EditorPane.selectionForeground", onAccent,
                 "EditorPane.inactiveForeground", textDisabled,
                 "EditorPane.border", textAreaBorder,
+                "EditorPane.margin", new InsetsUIResource(0, 0, 0, 0),
                 "TextPane.background", input,
                 "TextPane.foreground", text,
                 "TextPane.caretForeground", text,
@@ -329,6 +343,7 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
                 "TextPane.selectionForeground", onAccent,
                 "TextPane.inactiveForeground", textDisabled,
                 "TextPane.border", textAreaBorder,
+                "TextPane.margin", new InsetsUIResource(0, 0, 0, 0),
 
                 // Combo box
                 "ComboBox.background", control,
@@ -473,11 +488,16 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
                 // Tool bar & split pane
                 "ToolBar.background", background,
                 "ToolBar.foreground", text,
-                "ToolBar.border", new BorderUIResource.EmptyBorderUIResource(4, 4, 4, 4),
+                "ToolBar.border", new TesselBorders.ToolBarBorder(),
                 "ToolBar.isRollover", Boolean.TRUE,
                 "ToolBar.rolloverBorder", marginBorder,
                 "ToolBar.nonrolloverBorder", marginBorder,
                 "ToolBar.borderColor", border,
+                "ToolBar.separatorSize", new DimensionUIResource(9, 24),
+                "ToolBar.dockingBackground", surface,
+                "ToolBar.dockingForeground", accent,
+                "ToolBar.floatingBackground", surface,
+                "ToolBar.floatingForeground", c(p.borderStrong),
                 "SplitPane.background", background,
                 "SplitPane.dividerSize", 7,
                 "SplitPane.border", empty0,
@@ -485,16 +505,33 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
                 "SplitPaneDivider.draggingColor", c(p.borderStrong),
 
                 // Option pane & titled border
-                "OptionPane.background", background,
+                "OptionPane.background", surface,
                 "OptionPane.foreground", text,
                 "OptionPane.messageForeground", text,
-                "OptionPane.border", new BorderUIResource.EmptyBorderUIResource(16, 16, 12, 16),
-                "OptionPane.buttonAreaBorder", new BorderUIResource.EmptyBorderUIResource(16, 0, 0, 0),
+                "OptionPane.border", empty0,
+                "OptionPane.messageAreaBorder", new BorderUIResource.EmptyBorderUIResource(24, 24, 24, 24),
+                "OptionPane.buttonAreaBorder", empty0,
                 "OptionPane.sameSizeButtons", Boolean.TRUE,
+                "OptionPane.setButtonMargin", Boolean.FALSE,
+                "OptionPane.buttonPadding", 8,
+                "OptionPane.buttonOrientation", SwingConstants.RIGHT,
+                "OptionPane.messageAnchor", java.awt.GridBagConstraints.WEST,
+                "OptionPane.minimumSize", new DimensionUIResource(340, 120),
                 "OptionPane.informationIcon", TesselIcons.severity(Severity.INFORMATIONAL, 32),
                 "OptionPane.warningIcon", TesselIcons.severity(Severity.WARNING, 32),
                 "OptionPane.errorIcon", TesselIcons.severity(Severity.ERROR, 32),
-                "OptionPane.questionIcon", TesselIcons.severity(Severity.INFORMATIONAL, 32),
+                "OptionPane.questionIcon", TesselIcons.question(32),
+                // Internal frames, file chooser
+                "InternalFrame.border", new TesselBorders.InternalFrameBorder(),
+                "DesktopIcon.border", new TesselBorders.InternalFrameBorder(),
+                "InternalFrame.icon", TesselIcons.of(TesselIcons.Kind.WINDOW, 16, pal -> pal.textSecondary),
+                "InternalFrame.titleFont", new FontUIResource(Fonts.regular(13)),
+                "InternalFrame.activeTitleBackground", surface,
+                "InternalFrame.activeTitleForeground", text,
+                "InternalFrame.inactiveTitleBackground", surface,
+                "InternalFrame.inactiveTitleForeground", textTertiary,
+                "FileChooser.usesSingleFilePane", Boolean.TRUE,
+                "FileChooser.readOnly", Boolean.FALSE,
                 "TitledBorder.border", new TesselBorders.RoundedLineBorder(8),
                 "TitledBorder.titleColor", text,
                 "TitledBorder.font", new FontUIResource(Fonts.semibold(14)),
@@ -512,12 +549,23 @@ public class TesselLookAndFeel extends BasicLookAndFeel {
                     prefix + ".acceleratorForeground", textTertiary,
                     prefix + ".acceleratorSelectionForeground", textTertiary,
                     prefix + ".acceleratorFont", small,
-                    prefix + ".margin", new InsetsUIResource(6, 8, 6, 8),
+                    // Items in a popup need little room on the left: the icon (or text) already keeps a gap.
+                    prefix + ".margin", new InsetsUIResource(6, 2, 6, 8),
+                    // Room around the check mark column of menus that have check or radio items.
+                    prefix + ".checkIconOffset", 4,
+                    prefix + ".afterCheckIconGap", 8,
                     prefix + ".opaque", Boolean.FALSE,
                     prefix + ".borderPainted", Boolean.FALSE,
             });
         }
         table.put("Menu.background", background);
+        // Plain items and sub-menus have no check icon of their own, but the Basic delegate would still reserve
+        // an empty column for one (the column reappears by itself when a menu has check or radio items).
+        table.put("MenuItem.checkIcon", new TesselIcons.EmptyIcon(0, 0));
+        table.put("Menu.checkIcon", new TesselIcons.EmptyIcon(0, 0));
+        // Top-level menus (in a menu bar) keep the wider side margins; TesselMenuUIs.MenuUI switches between them.
+        table.put("Menu.margin", new InsetsUIResource(6, 8, 6, 8));
+        table.put("Tessel.popupMenuMargin", new InsetsUIResource(6, 2, 6, 8));
     }
 
     private static ColorUIResource c(Color color) {
