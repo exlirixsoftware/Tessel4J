@@ -1,7 +1,6 @@
 ![logo](assets/java.png)
 # Tessel4J
 
->>>>>>> Stashed changes
 A modern, themeable **look and feel for Java Swing**, matching the design of [Tessel.NET](../Tessel.NET).
 
 - Light, dark and system themes, switchable at runtime
