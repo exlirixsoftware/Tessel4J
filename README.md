@@ -1,6 +1,5 @@
 ![logo](assets/java.png)
 
-<<<<<<< Updated upstream
 =======
 # Tessel4J
 
