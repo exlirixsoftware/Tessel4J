@@ -1,6 +1,4 @@
 ![logo](assets/java.png)
-
-=======
 # Tessel4J
 
 >>>>>>> Stashed changes
